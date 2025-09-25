@@ -7,6 +7,17 @@ const rateLimit = require("express-rate-limit");
 dotenv.config();
 connectDB();
 
+// Use environment variables
+const PORT = process.env.PORT || 5000;
+const MONGO_URI = process.env.MONGO_URI;
+
+// Connect to MongoDB
+if (!MONGO_URI) {
+  console.error("❌ MONGO_URI is not defined in environment variables");
+  process.exit(1); // Exit if DB URI not set
+}
+connectDB(MONGO_URI);
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -40,5 +51,5 @@ app.use((err, req, res, next) => {
 });
 
 
-const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
