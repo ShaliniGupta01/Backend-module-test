@@ -1,35 +1,42 @@
-const Book = require('../models/Book');
+const mongoose = require("mongoose");
+const Book = require("../models/Book");
 
-//  GET all books
-//  GET /api/books
+// GET all books
 exports.getBooks = async (req, res, next) => {
   try {
-    const books = await Book.find().populate('user', 'name email');
-    res.json(books);
+    const books = await Book.find().populate("user", "name email");
+    res.json({ success: true, data: books, message: "Books fetched successfully" });
   } catch (err) {
-    next(err);
+    console.error(err.stack);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
-//  Get single book by ID
-//  GET /api/books/:id
+// GET single book by ID
 exports.getBookById = async (req, res, next) => {
   try {
-    const book = await Book.findById(req.params.id).populate('user', 'name email');
-    if (!book) return res.status(404).json({ message: 'Book not found' });
-    res.json(book);
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid ID format" });
+    }
+
+    const book = await Book.findById(req.params.id).populate("user", "name email");
+    if (!book) return res.status(404).json({ success: false, message: "Book not found" });
+
+    res.json({ success: true, data: book, message: "Book fetched successfully" });
   } catch (err) {
-    next(err);
+    console.error(err.stack);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
-//  Create new book (protected)
-//  POST /api/books
+// CREATE book
 exports.createBook = async (req, res, next) => {
   try {
     const { title, author, genre, price, inStock } = req.body;
+    if (!title || !author) {
+      return res.status(400).json({ success: false, message: "Title and Author are required" });
+    }
 
-    // req.user is set by authMiddleware
     const book = await Book.create({
       title,
       author,
@@ -39,52 +46,63 @@ exports.createBook = async (req, res, next) => {
       user: req.user._id
     });
 
-    res.status(201).json(book);
+    res.status(201).json({ success: true, data: book, message: "Book created successfully" });
   } catch (err) {
-    next(err);
+    console.error(err.stack);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
-//  Update book (only owner can update)
-// PUT /api/books/:id
+// UPDATE book
 exports.updateBook = async (req, res, next) => {
   try {
-    const book = await Book.findById(req.params.id);
-    if (!book) return res.status(404).json({ message: 'Book not found' });
-
-    // Debug: log IDs
-    console.log('Book owner:', book.user.toString());
-    console.log('Logged-in user:', req.user._id.toString());
-
-    if (book.user.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: 'Not authorized' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid ID format" });
     }
 
-    const updated = await Book.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(updated);
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ success: false, message: "Book not found" });
+
+    if (book.user.toString() !== req.user._id.toString()) {
+      return res.status(401).json({ success: false, message: "Not authorized" });
+    }
+
+    const updatedFields = {
+      title: req.body.title || book.title,
+      author: req.body.author || book.author,
+      genre: req.body.genre || book.genre,
+      price: req.body.price || book.price,
+      inStock: req.body.inStock !== undefined ? req.body.inStock : book.inStock
+    };
+
+    const updatedBook = await Book.findByIdAndUpdate(req.params.id, updatedFields, { new: true, runValidators: true });
+
+    res.json({ success: true, data: updatedBook, message: "Book updated successfully" });
   } catch (err) {
-    next(err);
+    console.error(err.stack);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
-// Delete book (only owner can delete)
-//  DELETE /api/books/:id
+// DELETE book
 exports.deleteBook = async (req, res, next) => {
   try {
-    const book = await Book.findById(req.params.id);
-    if (!book) return res.status(404).json({ message: 'Book not found' });
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ success: false, message: "Invalid ID format" });
+    }
 
-    // Debug: log IDs
-    console.log('Book owner:', book.user.toString());
-    console.log('Logged-in user:', req.user._id.toString());
+    const book = await Book.findById(req.params.id);
+    if (!book) return res.status(404).json({ success: false, message: "Book not found" });
 
     if (book.user.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: 'Not authorized' });
+      return res.status(401).json({ success: false, message: "Not authorized" });
     }
 
     await book.deleteOne();
-    res.json({ message: 'Book removed' });
+    res.json({ success: true, message: "Book deleted successfully" });
   } catch (err) {
-    next(err);
+    console.error(err.stack);
+    res.status(500).json({ success: false, message: "Server Error" });
   }
 };
+

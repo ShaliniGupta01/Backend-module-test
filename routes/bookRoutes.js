@@ -12,13 +12,14 @@ const {
 } = require('../controllers/bookController');
 
 const { protect } = require('../middleware/authMiddleware');
+const { validateBook } = require("../middleware/bookValidation");
  // path must be correct
 // Public routes
 router.get('/', getBooks);
 router.get('/:id', getBookById);
 
 // Protected routes (require token)
-router.post('/', protect, createBook);
+router.post('/', protect, validateBook, createBook);
 router.put('/:id', protect, updateBook);
 router.delete('/:id', protect, deleteBook);
 
